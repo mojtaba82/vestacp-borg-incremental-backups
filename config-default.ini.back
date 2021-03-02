@@ -12,7 +12,19 @@ VESTA_DIR=/usr/local/vesta # Where Vesta CP files are stored
 EXCLUDED_USERS=
 
 ##### Where to backup #####
-BACKUP_DIR=/backup # Global backup directory, inside this dir the script creates the different repo dirs.
+BACKUP_DIR="/backup" # Global backup directory, inside this dir the script creates the different repo dirs.
+
+# Remote repository
+REMOTE_HOST=
+REMOTE_PORT=
+if [ ! -z $REMOTE_HOST ]; then
+  BACKUP_DIR="ssh://$REMOTE_HOST:${REMOTE_PORT}${BACKUP_DIR}"
+fi
+REMOTE_KEY=
+if [ ! -z $REMOTE_KEY ]; then
+  export BORG_RSH="ssh -i $REMOTE_KEY"
+fi
+
 ARCHIVE_DIR=$BACKUP_DIR/offline # Is where offline users / archived users are stored. Incremental backups will not execute in archived users.
 
 # This is where individual users repositories will be created
@@ -25,8 +37,9 @@ REPO_ETC=$BACKUP_DIR/borg/etc
 REPO_VESTA=$BACKUP_DIR/borg/vesta
 
 ##### How many backups to keep (-1 for infinite) #####
-BACKUP_DAYS=90
-BACKUP_WEEKS=24
+BACKUP_HOURS=240
+BACKUP_DAYS=365
+BACKUP_WEEKS=265
 BACKUP_MONTHS=-1
 
 ##### Dir names #####
@@ -38,22 +51,15 @@ DB_DUMP_DIR_NAME=db_dump
 # repokey-blake2 is faster than repokey for modern CPUs
 # none is the fastest but no security
 ENCRYPTION_MODE="repokey-blake2"
-export BORG_PASSPHRASE="passphrase_for_all_borg_repos"
+export BORG_PASSPHRASE="Secret_PassPhrase_Secret"
+
 # Compression type
 # Default is lz4, very fast and ok compression ratio.
 # zstd is more modern and better compression ratio
 COMPRESSION_MODE="lz4"
+
 OPTIONS_INIT="--encryption=$ENCRYPTION_MODE"
 OPTIONS_CREATE="-sv --compression $COMPRESSION_MODE"
-OPTIONS_PRUNE="-v --keep-daily=$BACKUP_DAYS --keep-weekly=$BACKUP_WEEKS --keep-monthly=$BACKUP_MONTHS"
+OPTIONS_PRUNE="-v --keep-hourly=$BACKUP_HOURS --keep-daily=$BACKUP_DAYS --keep-weekly=$BACKUP_WEEKS --keep-monthly=$BACKUP_MONTHS"
 export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes # Leave yes if when you run the script via cron to avoid missing borg cache files.
 export HOME=/root # Sometimes when you run via cron, you need to export home directory, so borg can find cache files
-
-# Its very useful to have a backup mirror in other location, just in case the main server goes down
-
-##### Backup dir sync to remote server. Leave blank to skip #####
-# !!!!!!!!! WARNING, THE DESTINATION DIR IN THE REMOTE SERVER WILL BE COMPLETELY OVERWRITTEN !!!!!!!!!!
-# !!!!!!!!! Setup a passwordless ssh connection to remote server before using this feature
-REMOTE_BACKUP_SERVER=
-REMOTE_BACKUP_SERVER_USER=root
-REMOTE_BACKUP_SERVER_DIR=/backup/mainserver

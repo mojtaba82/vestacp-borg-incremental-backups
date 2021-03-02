@@ -1,6 +1,51 @@
 #!/bin/bash -l
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-source $CURRENT_DIR/config.ini
+config=config-default.ini
+name=$(date +"%Y-%m-%d-%H%M%S")
+while :; do
+    case $1 in
+        -c|--config)
+            if [ "$2" ]; then
+                config=$2
+                shift
+            else
+               die 'ERROR: "--config" requires a non-empty option argument.'
+            fi
+             ;;
+        --config=?*)
+            config=${1#*=}
+            ;;
+        --config=)
+            die 'ERROR: "--config" requires a non-empty option argument.'
+            ;;
+        -n|--name)
+            if [ "$2" ]; then
+                name=$2
+                shift
+            else
+               die 'ERROR: "--config" requires a non-empty option argument.'
+            fi  
+             ;;  
+        --name=?*)
+            name=${1#*=}
+            ;;  
+        --name=)
+            die 'ERROR: "--config" requires a non-empty option argument.'
+            ;;
+        --)              # End of all options.
+            shift
+            break
+            ;;
+        -?*)
+            die 'ERROR: Unknown option "$1"'
+            ;;
+        *)               # Default case: No more options, so break out of the loop.
+            break
+    esac
+
+    shift
+done
+source "$CURRENT_DIR/$config"
 
 ### Variables ###
 
@@ -11,12 +56,12 @@ START_TIME=`date +%s`
 EXCLUDE=$CURRENT_DIR/exclude
 
 # Set backup archive name to current day
-ARCHIVE=$(date +'%F')
+ARCHIVE=$name
 
 ### Start processing ###
 
 # Dump databases to borg
-$CURRENT_DIR/dump-databases.sh $ARCHIVE
+$CURRENT_DIR/dump-databases.sh --name $ARCHIVE --config $config
 
 echo
 echo "$(date +'%F %T') #################### USER PROCESSING ####################"
@@ -56,25 +101,29 @@ for USER_DIR in $HOME_DIR/* ; do
     echo "$USER_DIR/.cache" >> $EXCLUDE
 
     # Exclude drupal and wordpress cache dirs
-    for WEB_DIR in $USER_DIR/web/* ; do
-      if [ -d "$WEB_DIR/$PUBLIC_HTML_DIR_NAME" ]; then
-        find $WEB_DIR/$PUBLIC_HTML_DIR_NAME -maxdepth 2 -type d -name "cache" | grep "wp-content/cache" >> $EXCLUDE
-        if [ -d "$WEB_DIR/$PUBLIC_HTML_DIR_NAME/cache" ]; then
-          echo "$WEB_DIR/$PUBLIC_HTML_DIR_NAME/cache" >> $EXCLUDE
-        fi
-      fi
-    done
+#    for WEB_DIR in $USER_DIR/web/* ; do
+#      if [ -d "$WEB_DIR/$PUBLIC_HTML_DIR_NAME" ]; then
+#        find $WEB_DIR/$PUBLIC_HTML_DIR_NAME -maxdepth 2 -type d -name "cache" | grep "wp-content/cache" >> $EXCLUDE
+#        if [ -d "$WEB_DIR/$PUBLIC_HTML_DIR_NAME/cache" ]; then
+#          echo "$WEB_DIR/$PUBLIC_HTML_DIR_NAME/cache" >> $EXCLUDE
+#        fi
+#      fi
+#    done
 
     # Set user borg repo path
     USER_REPO=$REPO_USERS_DIR/$USER
+#    if [ ! -z $REMOTE_HOST ]; then
+#      USER_REPO="$REMOTE_HOST:$USER_REPO"
+#    fi
 
     # Check if repo was initialized, if its not we perform borg init
-    if ! [ -d "$USER_REPO/data" ]; then
-      echo "-- No repo found. Initializing new borg repository $USER_REPO"
-      mkdir -p $USER_REPO
-      borg init $OPTIONS_INIT $USER_REPO
-    fi
+#    if ! [ -d "$USER_REPO/data" ]; then
+#      echo "-- No repo found. Initializing new borg repository $USER_REPO"
+#      mkdir -p $USER_REPO
+#      borg init $OPTIONS_INIT $USER_REPO
+#    fi
 
+    borg init $OPTIONS_INIT $USER_REPO
     echo "-- Creating new backup archive $USER_REPO::$ARCHIVE"
     borg create $OPTIONS_CREATE $USER_REPO::$ARCHIVE $USER_DIR --exclude-from=$EXCLUDE
     echo "-- Cleaning old backup archives"
@@ -94,49 +143,61 @@ fi
 
 echo
 echo
+
 echo "$(date +'%F %T') #################### SERVER LEVEL BACKUPS #####################"
 
 echo "$(date +'%F %T') ########## Executing scripts backup: $SCRIPTS_DIR ##########"
-if ! [ -d "$REPO_SCRIPTS/data" ]; then
-  echo "-- No repo found. Initializing new borg repository $REPO_SCRIPTS"
-  mkdir -p $REPO_SCRIPTS
-  borg init $OPTIONS_INIT $REPO_SCRIPTS
-fi
+#if ! [ -d "$REPO_SCRIPTS/data" ]; then
+#  echo "-- No repo found. Initializing new borg repository $REPO_SCRIPTS"
+#  mkdir -p $REPO_SCRIPTS
+#  borg init $OPTIONS_INIT $REPO_SCRIPTS
+#fi
+#if [ ! -z $REMOTE_HOST ]; then
+#  REPO_SCRIPTS="$REMOTE_HOST:$REPO_SCRIPTS"
+#fi
+borg init $OPTIONS_INIT $REPO_SCRIPTS
 echo "-- Creating new backup archive $REPO_SCRIPTS::$ARCHIVE"
 borg create $OPTIONS_CREATE $REPO_SCRIPTS::$ARCHIVE $SCRIPTS_DIR
 echo "-- Cleaning old backup archives"
 borg prune $OPTIONS_PRUNE $REPO_SCRIPTS
 echo
 
-echo "$(date +'%F %T') ########## Executing server config backup: $ETC_DIR ##########"
-if ! [ -d "$REPO_ETC/data" ]; then
-  echo "-- No repo found. Initializing new borg repository $REPO_ETC"
-  mkdir -p $REPO_ETC
-  borg init $OPTIONS_INIT $REPO_ETC
-fi
-echo "-- Creating new backup archive $REPO_ETC::$ARCHIVE"
-borg create $OPTIONS_CREATE $REPO_ETC::$ARCHIVE $ETC_DIR
-echo "-- Cleaning old backup archives"
-borg prune $OPTIONS_PRUNE $REPO_ETC
-echo
-
 echo "$(date +'%F %T') ########## Executing Vesta dir backup: $VESTA_DIR ##########"
-if ! [ -d "$REPO_VESTA/data" ]; then
-  echo "-- No repo found. Initializing new borg repository $REPO_VESTA"
-  mkdir -p $REPO_VESTA
-  borg init $OPTIONS_INIT $REPO_VESTA
-fi
+#if ! [ -d "$REPO_VESTA/data" ]; then
+#  echo "-- No repo found. Initializing new borg repository $REPO_VESTA"
+#  mkdir -p $REPO_VESTA
+#  borg init $OPTIONS_INIT $REPO_VESTA
+#fi
+#if [ ! -z $REMOTE_HOST ]; then
+#  REPO_VESTA="$REMOTE_HOST:$REPO_VESTA"
+#fi
+borg init $OPTIONS_INIT $REPO_VESTA
 echo "-- Creating new backup archive $REPO_VESTA::$ARCHIVE"
 borg create $OPTIONS_CREATE $REPO_VESTA::$ARCHIVE $VESTA_DIR
 echo "-- Cleaning old backup archives"
 borg prune $OPTIONS_PRUNE $REPO_VESTA
 echo
 
-if [[ ! -z "$REMOTE_BACKUP_SERVER" && ! -z "$REMOTE_BACKUP_SERVER_DIR" ]]; then
-  echo
-  echo "$(date +'%F %T') #################### SYNC BACKUP DIR $BACKUP_DIR TO REMOTE SERVER: $REMOTE_BACKUP_SERVER:$REMOTE_BACKUP_SERVER_DIR ####################"
-  rsync -za --delete --stats $BACKUP_DIR/ $REMOTE_BACKUP_SERVER_USER@$REMOTE_BACKUP_SERVER:$REMOTE_BACKUP_SERVER_DIR/
-fi
+echo "$(date +'%F %T') ########## Executing server config backup: $ETC_DIR ##########"
+#if ! [ -d "$REPO_ETC/data" ]; then
+#  echo "-- No repo found. Initializing new borg repository $REPO_ETC"
+#  mkdir -p $REPO_ETC
+#  borg init $OPTIONS_INIT $REPO_ETC
+#fi
+#if [ ! -z $REMOTE_HOST ]; then
+#  REPO_ETC="$REMOTE_HOST:$REPO_ETC"
+#fi
+borg init $OPTIONS_INIT $REPO_ETC
+echo "-- Creating new backup archive $REPO_ETC::$ARCHIVE"
+borg create $OPTIONS_CREATE $REPO_ETC::$ARCHIVE $ETC_DIR
+echo "-- Cleaning old backup archives"
+borg prune $OPTIONS_PRUNE $REPO_ETC
+echo
+#if [[ ! -z "$REMOTE_BACKUP_SERVER" && ! -z "$REMOTE_BACKUP_SERVER_DIR" ]]; then
+#  echo
+#  echo "$(date +'%F %T') #################### SYNC BACKUP DIR $BACKUP_DIR TO REMOTE SERVER: $REMOTE_BACKUP_SERVER:$REMOTE_BACKUP_SERVER_DIR ####################"
+#  rsync -za --delete --stats $BACKUP_DIR/ $REMOTE_BACKUP_SERVER_USER@$REMOTE_BACKUP_SERVER:$REMOTE_BACKUP_SERVER_DIR/
+#fi
 
 echo
 echo "$(date +'%F %T') #################### BACKUP COMPLETED ####################"
