@@ -1,6 +1,6 @@
 #!/bin/bash -l
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-config=config-default.ini
+config=
 name=$(date +"%Y-%m-%d-%H%M%S")
 while :; do
     case $1 in
@@ -45,6 +45,10 @@ while :; do
 
     shift
 done
+if [ -z $config ]; then
+   echo Error: You must use --config arguement
+   exit 1
+fi
 source "$CURRENT_DIR/$config"
 
 ### Variables ###

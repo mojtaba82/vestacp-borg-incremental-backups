@@ -45,6 +45,10 @@ while :; do
 
     shift
 done
+if [ -z $config ]; then
+    echo Error: You must use --config arguement
+    exit 1
+fi
 source "$CURRENT_DIR/$config"
 
 V_LIST_DATABASES="${VESTA_DIR}/bin/v-list-databases"
