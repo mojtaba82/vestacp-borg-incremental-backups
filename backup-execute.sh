@@ -57,7 +57,7 @@ source "$CURRENT_DIR/$config"
 START_TIME=`date +%s`
 
 # Exclude is a temp file that stores dirs that we dont want to backup
-EXCLUDE=$CURRENT_DIR/exclude
+#EXCLUDE=$CURRENT_DIR/exclude
 
 # Set backup archive name to current day
 ARCHIVE=$name
@@ -94,15 +94,25 @@ for USER_DIR in $HOME_DIR/* ; do
     done
 
     # Clean exclusion list
-    if [ -f "$EXCLUDE" ]; then
-      rm $EXCLUDE
-    fi
+#    if [ -f "$EXCLUDE" ]; then
+#      rm $EXCLUDE
+#    fi
 
     # Build exclusion list
     # No need for drush backups, tmp folder and .cache dir
-    echo "$USER_DIR/drush-backups" >> $EXCLUDE
-    echo "$USER_DIR/tmp" >> $EXCLUDE
-    echo "$USER_DIR/.cache" >> $EXCLUDE
+ #   echo "$USER_DIR/drush-backups" >> $EXCLUDE
+ #   echo "$USER_DIR/tmp" >> $EXCLUDE
+ #   echo "$USER_DIR/.cache" >> $EXCLUDE
+
+excludes=
+for exclude in "${EXCLUDE_ALL_USERS_FILES[@]}"; do
+  excludes="$excludes --exclude $USER_DIR/$exclude ";
+done
+
+includes=
+for include in "${INCLUDE_ALL_USERS_FILES[@]}"; do
+  includes="$includes $USER_DIR/$include ";
+done
 
     # Exclude drupal and wordpress cache dirs
 #    for WEB_DIR in $USER_DIR/web/* ; do
@@ -129,7 +139,7 @@ for USER_DIR in $HOME_DIR/* ; do
 
     borg init $OPTIONS_INIT $USER_REPO
     echo "-- Creating new backup archive $USER_REPO::$ARCHIVE"
-    borg create $OPTIONS_CREATE $USER_REPO::$ARCHIVE $USER_DIR --exclude-from=$EXCLUDE
+    borg create $OPTIONS_CREATE $excludes $USER_REPO::$ARCHIVE $includes
     echo "-- Cleaning old backup archives"
     borg prune $OPTIONS_PRUNE $USER_REPO
 
